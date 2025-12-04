@@ -24,7 +24,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            vik9541/digital-twin-api:latest
+            vik9541docker/digital-twin-api:latest
 
   deploy:
     needs: build-and-push

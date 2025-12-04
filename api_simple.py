@@ -6,7 +6,7 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
 API_KEY = os.getenv("API_KEY", "super-secret-key-change-me")
 
-app = FastAPI(title="Digital Twin API", version="2.0.0")
+app = FastAPI(title="Digital Twin API", version="2.0.1")
 
 
 async def verify_api_key(x_api_key: str = Header(None)):

@@ -1,0 +1,47 @@
+name: Deploy Digital Twin Bot
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+      
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+      
+      - name: Save kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+      
+      - name: Verify cluster connection
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+      
+      - name: Deploy with Helm
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo update
+          helm upgrade --install digital-twin ./helm/digital-twin-bot \
+            -f ./helm/digital-twin-bot/values-prod.yaml \
+            -n production --create-namespace \
+            --wait --timeout 10m
+      
+      - name: Check deployment status
+        run: |
+          kubectl get pods -n production -o wide
+          kubectl get svc -n production
+          kubectl get ingress -n production 2>/dev/null || echo "No ingress found"

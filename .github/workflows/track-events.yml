@@ -1,0 +1,21 @@
+name: Track Project Events
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    types: [ opened, closed, reopened, synchronize ]
+  release:
+    types: [ published, created ]
+
+jobs:
+  track-github-event:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Track Push Event
+        if: github.event_name == 'push'
+        run: |
+          curl -X POST ${{ secrets.API_URL }}/events/ \
+            -H "Content-Type: application/json" \
+            -d '{"event_type":"git.push","timestamp":"'$(date -u +'%Y-%m-%dT%H:%M:%SZ')'","source":"github","actor":"'${{ github.actor }}'","title":"Code pushed to '"'"'${{ github.ref_name }}'"'"'","priority":"medium","status":"completed","metadata":{"branch":"'${{ github.ref_name }}'","commit_sha":"'${{ github.sha }}'","repository":"'${{ github.repository }}'"}}'

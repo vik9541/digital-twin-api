@@ -1,1 +1,23 @@
 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: digital-twin-api
+  labels:
+    app: digital-twin-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: digital-twin-api
+  template:
+    metadata:
+      labels:
+        app: digital-twin-api
+    spec:
+      containers:
+        - name: digital-twin-api
+          image: vik9541docker/digital-twin-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000

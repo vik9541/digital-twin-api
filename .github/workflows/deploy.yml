@@ -1,4 +1,4 @@
-﻿name: Build and Deploy API
+name: Build and Deploy API
 
 on:
   push:
@@ -30,16 +30,17 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Deploy to Kubernetes
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
-            cd ~/app && \
-            docker-compose pull api && \
-            docker-compose up -d api && \
-            docker system prune -f
-          '
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=./kubeconfig
+          kubectl apply -f k8s/
+          kubectl rollout status deployment/digital-twin-api

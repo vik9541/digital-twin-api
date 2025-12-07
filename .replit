@@ -2,4 +2,5 @@
 expertMode = true
 
 [nix]
-packages = ["kubectl", "dig"]
+packages = ["kubectl", "dig", "doctl"]
+channel = "stable-25_05"

@@ -4,7 +4,13 @@ metadata:
   name: digital-twin-api-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+        cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  tls:
+    - hosts:
+        - 97v.ru
+            - www.97v.ru
+                secretName: digital-twin-tls
   ingressClassName: nginx
   rules:
                 - host: 97v.ru

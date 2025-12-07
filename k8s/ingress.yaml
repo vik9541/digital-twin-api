@@ -7,16 +7,6 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: 97k.ru
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: digital-twin-api
-            port:
-              number: 80
                 - host: 97v.ru
                     http:
                           paths:

@@ -1,10 +1,11 @@
-﻿FROM python:3.11-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY api_simple.py /app/api_simple.py
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir fastapi uvicorn prometheus-client
+COPY api_simple.py /app/api_simple.py
 
 ENV PYTHONUNBUFFERED=1
 

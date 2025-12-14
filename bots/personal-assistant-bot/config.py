@@ -24,11 +24,18 @@ class Config:
     # Yandex Market API
     YANDEX_MARKET_API_KEY: str = os.getenv("YANDEX_MARKET_API_KEY", "")
     
+    # Microsoft Graph API
+    MS_ACCESS_TOKEN: str = os.getenv("MS_ACCESS_TOKEN", "")
+    
+    # Storage Buckets (Supabase)
+    STORAGE_BUCKET_PROJECTS: str = "project-files"
+    STORAGE_BUCKET_RECEIPTS: str = "receipts"
+    
     # Режим работы
     DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
     
     # Лимиты
-    MAX_FILE_SIZE_MB: int = 20
+    MAX_FILE_SIZE_MB: int = 50  # Supabase default
     MAX_PROJECTS_PER_USER: int = 100
     MAX_TASKS_PER_USER: int = 1000
     

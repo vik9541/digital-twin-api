@@ -6,10 +6,10 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from typing import Dict
 
-from ..services.supabase_service import SupabaseService
-from ..services.ocr_service import OCRService
-from ..services.receipt_parser import ReceiptParser
-from ..services.market_service import MarketService
+from services.supabase_service import SupabaseService
+from services.ocr_service import OCRService
+from services.receipt_parser import ReceiptParser
+from services.market_service import MarketService
 
 
 class ReceiptsHandler:

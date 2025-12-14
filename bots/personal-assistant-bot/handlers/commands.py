@@ -2,10 +2,14 @@
 Базовые команды бота: /start, /help, /status
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.supabase_service import SupabaseService
+from services.supabase_service import SupabaseService
 
 
 class CommandsHandler:

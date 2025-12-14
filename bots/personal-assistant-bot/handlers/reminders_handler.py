@@ -7,7 +7,7 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.notifications import NotificationService
+from services.notifications import NotificationService
 
 logger = logging.getLogger(__name__)
 

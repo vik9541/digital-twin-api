@@ -3,8 +3,14 @@ Personal Assistant Bot - Главная точка входа
 """
 
 import os
+import sys
 import logging
 import asyncio
+
+# Добавляем путь для импортов
+BOT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BOT_DIR)
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -14,8 +20,12 @@ from telegram.ext import (
     ContextTypes
 )
 
-from .config import config
-from .handlers import (
+# Загрузка .env из директории бота
+from dotenv import load_dotenv
+load_dotenv(os.path.join(BOT_DIR, '.env'))
+
+from config import Config
+from handlers import (
     CommandsHandler,
     ProjectsHandler,
     TasksHandler,
@@ -26,7 +36,13 @@ from .handlers import (
     ExportHandler,
     MicrosoftHandler
 )
-from .services.notifications import NotificationService
+from services.notifications import NotificationService
+
+# Загрузка .env
+from dotenv import load_dotenv
+load_dotenv()
+
+config = Config()
 
 # Настройка логирования
 logging.basicConfig(

@@ -6,8 +6,8 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from datetime import datetime, timedelta
 
-from ..services.supabase_service import SupabaseService
-from ..services.health_analytics import HealthAnalytics
+from services.supabase_service import SupabaseService
+from services.health_analytics import HealthAnalytics
 
 
 class HealthHandler:

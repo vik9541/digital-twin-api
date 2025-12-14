@@ -7,9 +7,9 @@ from datetime import datetime, date, timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.supabase_service import SupabaseService
-from ..services.export_service import ExportService
-from ..services.expense_analytics import ExpenseAnalytics
+from services.supabase_service import SupabaseService
+from services.export_service import ExportService
+from services.expense_analytics import ExpenseAnalytics
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.supabase_service import SupabaseService
-from ..services.storage_service import StorageService
+from services.supabase_service import SupabaseService
+from services.storage_service import StorageService
 
 
 class ProjectsHandler:

@@ -7,8 +7,8 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..services.microsoft_graph import MicrosoftGraphService, format_contact_for_graph
-from ..services.supabase_service import SupabaseService
+from services.microsoft_graph import MicrosoftGraphService, format_contact_for_graph
+from services.supabase_service import SupabaseService
 
 logger = logging.getLogger(__name__)
 

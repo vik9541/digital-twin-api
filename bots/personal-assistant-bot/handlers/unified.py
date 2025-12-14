@@ -20,7 +20,7 @@ class UnifiedHandler:
     """
     
     def __init__(self, tasks_handler, projects_handler, health_handler, 
-                 reminders_handler, receipts_handler, export_handler):
+                 reminders_handler, receipts_handler, export_handler, contacts_handler=None):
         """
         Args:
             tasks_handler: TasksHandler instance
@@ -29,6 +29,7 @@ class UnifiedHandler:
             reminders_handler: RemindersHandler instance
             receipts_handler: ReceiptsHandler instance
             export_handler: ExportHandler instance
+            contacts_handler: ContactsHandler instance
         """
         self.tasks = tasks_handler
         self.projects = projects_handler
@@ -36,6 +37,7 @@ class UnifiedHandler:
         self.reminders = reminders_handler
         self.receipts = receipts_handler
         self.reports = export_handler
+        self.contacts = contacts_handler
     
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -67,6 +69,9 @@ class UnifiedHandler:
             elif parsed.intent == Intent.REPORT:
                 await self._handle_report(update, context, parsed)
             
+            elif parsed.intent == Intent.CONTACT:
+                await self._handle_contact(update, context, parsed)
+            
             elif parsed.intent == Intent.SMALL_TALK:
                 await self._handle_small_talk(update, context, parsed)
             
@@ -78,6 +83,7 @@ class UnifiedHandler:
                         "🤔 Не совсем понял. Попробуй:\n"
                         "• \"Запиши задачу: ...\"\n"
                         "• \"Создай проект ...\"\n"
+                        "• \"Добавь контакт Иван 89991234567\"\n"
                         "• \"Напомни через 30 мин ...\""
                     )
         
@@ -307,14 +313,31 @@ class UnifiedHandler:
         
         else:
             await update.message.reply_text("👍 Ок")
+    
+    async def _handle_contact(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
+        """Обработка контактов"""
+        if not self.contacts:
+            await update.message.reply_text("❌ Сервис контактов не настроен")
+            return
+        
+        text = parsed.original_text.lower()
+        user_id = str(update.effective_user.id)
+        
+        # Определяем действие
+        if any(w in text for w in ['добав', 'создай', 'сохрани', 'запиши']):
+            response = await self.contacts.add_contact_natural(user_id, parsed.original_text)
+        else:
+            response = await self.contacts.search_contact_natural(user_id, parsed.original_text)
+        
+        await update.message.reply_text(response, parse_mode='Markdown')
 
 
 # Создаётся в main.py после инициализации всех handlers
 unified_handler = None
 
 
-def create_unified_handler(tasks, projects, health, reminders, receipts, reports) -> UnifiedHandler:
+def create_unified_handler(tasks, projects, health, reminders, receipts, reports, contacts=None) -> UnifiedHandler:
     """Фабрика для создания UnifiedHandler"""
     global unified_handler
-    unified_handler = UnifiedHandler(tasks, projects, health, reminders, receipts, reports)
+    unified_handler = UnifiedHandler(tasks, projects, health, reminders, receipts, reports, contacts)
     return unified_handler

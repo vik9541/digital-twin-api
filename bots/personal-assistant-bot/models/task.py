@@ -4,7 +4,8 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optionalfrom utils.timezone import now_naive as moscow_now
+from typing import Optional
+from utils.timezone import now_naive as moscow_now
 
 @dataclass
 class Task:

@@ -391,3 +391,91 @@ class SupabaseService:
         result = self.client.table('health_diary').select('*').eq('user_id', user_id).gte('created_at', since_date).order('created_at', desc=True).execute()
         
         return result.data or []
+
+    # ==========================================
+    # КОНТАКТЫ
+    # ==========================================
+    
+    async def create_contact(self, user_id: str, contact_data: Dict) -> Dict:
+        """Создать контакт"""
+        if not self.client:
+            return {}
+        
+        contact = {
+            'user_id': user_id,
+            'display_name': contact_data.get('display_name', ''),
+            'first_name': contact_data.get('first_name'),
+            'last_name': contact_data.get('last_name'),
+            'phone': contact_data.get('phone'),
+            'phone_work': contact_data.get('phone_work'),
+            'email': contact_data.get('email'),
+            'company': contact_data.get('company'),
+            'job_title': contact_data.get('job_title'),
+            'notes': contact_data.get('notes'),
+            'category': contact_data.get('category', 'personal'),
+            'is_favorite': contact_data.get('is_favorite', False)
+        }
+        
+        result = self.client.table('contacts').insert(contact).execute()
+        return result.data[0] if result.data else {}
+    
+    async def get_contacts(self, user_id: str, limit: int = 50, category: str = None) -> List[Dict]:
+        """Получить контакты пользователя"""
+        if not self.client:
+            return []
+        
+        query = self.client.table('contacts').select('*').eq('user_id', user_id)
+        
+        if category:
+            query = query.eq('category', category)
+        
+        result = query.order('is_favorite', desc=True).order('display_name').limit(limit).execute()
+        return result.data or []
+    
+    async def search_contacts(self, user_id: str, query: str) -> List[Dict]:
+        """Поиск контактов по имени, телефону или заметкам"""
+        if not self.client:
+            return []
+        
+        # Поиск по имени или телефону
+        result = self.client.table('contacts').select('*').eq('user_id', user_id).or_(
+            f"display_name.ilike.%{query}%,phone.ilike.%{query}%,notes.ilike.%{query}%"
+        ).order('display_name').execute()
+        
+        return result.data or []
+    
+    async def get_contact_by_id(self, user_id: str, contact_id: str) -> Dict:
+        """Получить контакт по ID"""
+        if not self.client:
+            return {}
+        
+        result = self.client.table('contacts').select('*').eq('user_id', user_id).eq('id', contact_id).execute()
+        return result.data[0] if result.data else {}
+    
+    async def update_contact(self, user_id: str, contact_id: str, updates: Dict) -> Dict:
+        """Обновить контакт"""
+        if not self.client:
+            return {}
+        
+        result = self.client.table('contacts').update(updates).eq('user_id', user_id).eq('id', contact_id).execute()
+        return result.data[0] if result.data else {}
+    
+    async def delete_contact(self, user_id: str, contact_id: str) -> bool:
+        """Удалить контакт"""
+        if not self.client:
+            return False
+        
+        result = self.client.table('contacts').delete().eq('user_id', user_id).eq('id', contact_id).execute()
+        return len(result.data) > 0 if result.data else False
+    
+    async def toggle_favorite_contact(self, user_id: str, contact_id: str) -> Dict:
+        """Переключить избранное"""
+        if not self.client:
+            return {}
+        
+        contact = await self.get_contact_by_id(user_id, contact_id)
+        if not contact:
+            return {}
+        
+        new_value = not contact.get('is_favorite', False)
+        return await self.update_contact(user_id, contact_id, {'is_favorite': new_value})

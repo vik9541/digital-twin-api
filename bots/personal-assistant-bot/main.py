@@ -37,6 +37,7 @@ from handlers import (
     MicrosoftHandler,
     create_unified_handler
 )
+from handlers.contacts_handler import ContactsHandler
 from services.notifications import NotificationService
 
 # Загрузка .env
@@ -67,6 +68,7 @@ class PersonalAssistantBot:
         self.reminders = RemindersHandler()
         self.export = ExportHandler()
         self.microsoft = MicrosoftHandler()
+        self.contacts = ContactsHandler()
         
         # Единый обработчик текстовых сообщений (Единое окно)
         self.unified = create_unified_handler(
@@ -75,7 +77,8 @@ class PersonalAssistantBot:
             health=self.health,
             reminders=self.reminders,
             receipts=self.receipts,
-            reports=self.export
+            reports=self.export,
+            contacts=self.contacts
         )
         
         # Сервис уведомлений
@@ -139,6 +142,9 @@ class PersonalAssistantBot:
         
         # Microsoft интеграция
         app.add_handler(CommandHandler("ms", self.microsoft.ms_command))
+        
+        # Контакты
+        app.add_handler(CommandHandler("contact", self.contacts.contact_command))
         
         # Обработка документов
         app.add_handler(MessageHandler(filters.Document.ALL, self.projects.handle_document))

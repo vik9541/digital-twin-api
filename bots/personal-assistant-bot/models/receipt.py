@@ -4,7 +4,8 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Listfrom utils.timezone import now_naive as moscow_now
+from typing import Optional, List
+from utils.timezone import now_naive as moscow_now
 
 @dataclass
 class ReceiptItem:

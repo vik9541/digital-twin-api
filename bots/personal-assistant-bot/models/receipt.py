@@ -4,8 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
-
+from typing import Optional, Listfrom utils.timezone import now_naive as moscow_now
 
 @dataclass
 class ReceiptItem:
@@ -57,7 +56,7 @@ class Receipt:
     receipt_date: Optional[datetime] = None
     total_sum: float = 0.0
     file_url: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
     metadata: dict = field(default_factory=dict)
     
     # Связанные товары
@@ -75,7 +74,7 @@ class Receipt:
             receipt_date=data.get('receipt_date'),
             total_sum=data.get('total_sum', 0.0),
             file_url=data.get('file_url'),
-            created_at=data.get('created_at', datetime.now()),
+            created_at=data.get('created_at', moscow_now()),
             metadata=data.get('metadata', {}),
             items=items
         )

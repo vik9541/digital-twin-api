@@ -4,8 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
-
+from typing import Optional, Listfrom utils.timezone import now_naive as moscow_now
 
 @dataclass
 class Project:
@@ -16,7 +15,7 @@ class Project:
     project_name: str
     description: Optional[str] = None
     status: str = 'active'  # active, done, archived
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
     deadline: Optional[datetime] = None
     metadata: dict = field(default_factory=dict)
     
@@ -33,7 +32,7 @@ class Project:
             project_name=data.get('project_name', ''),
             description=data.get('description'),
             status=data.get('status', 'active'),
-            created_at=data.get('created_at', datetime.now()),
+            created_at=data.get('created_at', moscow_now()),
             deadline=data.get('deadline'),
             metadata=data.get('metadata', {}),
             files_count=data.get('files_count', 0),
@@ -61,4 +60,4 @@ class Project:
     def is_overdue(self) -> bool:
         if not self.deadline:
             return False
-        return datetime.now() > self.deadline and self.is_active
+        return moscow_now() > self.deadline and self.is_active

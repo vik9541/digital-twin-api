@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Callable
 from dataclasses import dataclass, field
+from utils.timezone import now_naive as moscow_now
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ class Reminder:
     remind_at: datetime
     repeat: Optional[str] = None  # daily, weekly, monthly, None
     is_active: bool = True
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
     
     REPEAT_OPTIONS = {
         'daily': timedelta(days=1),
@@ -70,7 +71,7 @@ class NotificationService:
     
     async def _check_reminders(self):
         """Проверка и отправка напоминаний"""
-        now = datetime.now()
+        now = moscow_now()
         
         for reminder_id, reminder in list(self.reminders.items()):
             if not reminder.is_active:
@@ -145,7 +146,7 @@ class NotificationService:
         """
         import re
         
-        now = datetime.now()
+        now = moscow_now()
         
         # "через N минут/часов"
         match = re.search(r'через\s+(\d+)\s*(минут|мин|час|часов|часа)', text.lower())

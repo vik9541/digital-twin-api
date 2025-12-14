@@ -4,8 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
-
+from typing import Optionalfrom utils.timezone import now_naive as moscow_now
 
 @dataclass
 class UserPreferences:
@@ -17,8 +16,8 @@ class UserPreferences:
     language: str = 'ru'
     timezone: str = 'Europe/Moscow'
     metadata: dict = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
-    updated_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
+    updated_at: datetime = field(default_factory=moscow_now)
     
     MODES = {
         'executor': {
@@ -48,8 +47,8 @@ class UserPreferences:
             language=data.get('language', 'ru'),
             timezone=data.get('timezone', 'Europe/Moscow'),
             metadata=data.get('metadata', {}),
-            created_at=data.get('created_at', datetime.now()),
-            updated_at=data.get('updated_at', datetime.now())
+            created_at=data.get('created_at', moscow_now()),
+            updated_at=data.get('updated_at', moscow_now())
         )
     
     def to_dict(self) -> dict:

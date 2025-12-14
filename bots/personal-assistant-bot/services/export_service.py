@@ -9,6 +9,7 @@ import io
 from datetime import datetime, date
 from typing import List, Dict, Any, Optional
 import logging
+from utils.timezone import now_naive as moscow_now
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class ExportService:
     def export_tasks_json(tasks: List[Dict]) -> bytes:
         """Экспорт задач в JSON"""
         export_data = {
-            'exported_at': datetime.now().isoformat(),
+            'exported_at': moscow_now().isoformat(),
             'count': len(tasks),
             'tasks': tasks
         }
@@ -150,7 +151,7 @@ class ExportService:
     def export_full_backup(data: Dict) -> bytes:
         """Полный экспорт всех данных в JSON"""
         export_data = {
-            'exported_at': datetime.now().isoformat(),
+            'exported_at': moscow_now().isoformat(),
             'version': '1.0',
             'data': data
         }

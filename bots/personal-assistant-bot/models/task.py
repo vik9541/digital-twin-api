@@ -4,8 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
-
+from typing import Optionalfrom utils.timezone import now_naive as moscow_now
 
 @dataclass
 class Task:
@@ -17,7 +16,7 @@ class Task:
     status: str = 'pending'  # pending, in_progress, done
     priority: str = 'medium'  # low, medium, high
     project_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
     due_date: Optional[datetime] = None
     
     # Связанные данные
@@ -33,7 +32,7 @@ class Task:
             status=data.get('status', 'pending'),
             priority=data.get('priority', 'medium'),
             project_id=data.get('project_id'),
-            created_at=data.get('created_at', datetime.now()),
+            created_at=data.get('created_at', moscow_now()),
             due_date=data.get('due_date'),
             project_name=data.get('project_name')
         )

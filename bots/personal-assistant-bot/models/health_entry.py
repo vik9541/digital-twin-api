@@ -4,8 +4,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, date, time
-from typing import Optional
-
+from typing import Optionalfrom utils.timezone import now_naive as moscow_now
 
 @dataclass
 class HealthEntry:
@@ -18,7 +17,7 @@ class HealthEntry:
     entry_date: date = field(default_factory=date.today)
     entry_time: Optional[time] = None
     data: dict = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=moscow_now)
     
     ENTRY_TYPES = {
         'food': {'name': 'Питание', 'emoji': '🍽️'},
@@ -40,7 +39,7 @@ class HealthEntry:
             entry_date=data.get('entry_date', date.today()),
             entry_time=data.get('entry_time'),
             data=data.get('data', {}),
-            created_at=data.get('created_at', datetime.now())
+            created_at=data.get('created_at', moscow_now())
         )
     
     def to_dict(self) -> dict:

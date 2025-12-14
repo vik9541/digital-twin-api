@@ -5,6 +5,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Any
 import hashlib
+from utils.timezone import now_naive as moscow_now
 
 
 class Helpers:
@@ -27,7 +28,7 @@ class Helpers:
     @staticmethod
     def relative_time(dt: datetime) -> str:
         """Относительное время (5 минут назад, вчера, и т.д.)"""
-        now = datetime.now()
+        now = moscow_now()
         diff = now - dt
         
         if diff < timedelta(minutes=1):

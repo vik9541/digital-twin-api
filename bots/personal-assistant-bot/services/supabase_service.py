@@ -4,6 +4,7 @@
 
 import os
 from datetime import datetime, timedelta
+from utils.timezone import now_naive as moscow_now
 from typing import Optional, List, Dict, Any
 from supabase import create_client, Client
 
@@ -385,7 +386,7 @@ class SupabaseService:
         if not self.client:
             return []
         
-        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        since_date = (moscow_now() - timedelta(days=days)).isoformat()
         
         result = self.client.table('health_diary').select('*').eq('user_id', user_id).gte('created_at', since_date).order('created_at', desc=True).execute()
         

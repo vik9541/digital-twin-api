@@ -1,0 +1,23 @@
+# Personal Assistant Bot - Dependencies
+
+# Telegram
+python-telegram-bot>=20.0
+
+# Supabase
+supabase>=2.0.0
+
+# OCR
+google-cloud-vision>=3.0.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
+# HTTP requests
+aiohttp>=3.9.0
+requests>=2.31.0
+
+# Utils
+python-dotenv>=1.0.0
+
+# Optional: For development
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

@@ -4,22 +4,32 @@ metadata:
   name: digital-twin-api-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-        cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  ingressClassName: nginx
   tls:
     - hosts:
         - 97v.ru
-            - www.97v.ru
-                secretName: digital-twin-tls
-  ingressClassName: nginx
+        - www.97v.ru
+      secretName: digital-twin-tls
   rules:
-                - host: 97v.ru
-                    http:
-                          paths:
-                                  - path: /
-                                            pathType: Prefix
-                                                      backend:
-                                                                  service:
-                                                                                name: digital-twin-api
-                                                                                              port:
-                                                                                                              number: 80
+    - host: 97v.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: digital-twin-api
+                port:
+                  number: 80
+    - host: www.97v.ru
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: digital-twin-api
+                port:
+                  number: 80

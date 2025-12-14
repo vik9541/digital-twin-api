@@ -38,6 +38,7 @@ from handlers import (
     create_unified_handler
 )
 from handlers.contacts_handler import ContactsHandler
+from handlers.work_tracker_handler import WorkTrackerHandler
 from services.notifications import NotificationService
 
 # Загрузка .env
@@ -69,6 +70,7 @@ class PersonalAssistantBot:
         self.export = ExportHandler()
         self.microsoft = MicrosoftHandler()
         self.contacts = ContactsHandler()
+        self.work_tracker = WorkTrackerHandler(self.tasks.db)  # Используем supabase_service
         
         # Единый обработчик текстовых сообщений (Единое окно)
         self.unified = create_unified_handler(
@@ -78,7 +80,8 @@ class PersonalAssistantBot:
             reminders=self.reminders,
             receipts=self.receipts,
             reports=self.export,
-            contacts=self.contacts
+            contacts=self.contacts,
+            work_tracker=self.work_tracker
         )
         
         # Сервис уведомлений
@@ -145,6 +148,9 @@ class PersonalAssistantBot:
         
         # Контакты
         app.add_handler(CommandHandler("contact", self.contacts.contact_command))
+        
+        # Рабочее время
+        app.add_handler(CommandHandler("work", self.work_tracker.handle_command))
         
         # Обработка документов
         app.add_handler(MessageHandler(filters.Document.ALL, self.projects.handle_document))

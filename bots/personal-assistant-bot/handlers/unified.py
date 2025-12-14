@@ -8,7 +8,7 @@ import logging
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from .dispatcher import dispatch_message, Intent, ParsedIntent
+from services.intent_classifier import get_classifier, Intent, ClassificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,8 @@ class UnifiedHandler:
     """
     
     def __init__(self, tasks_handler, projects_handler, health_handler, 
-                 reminders_handler, receipts_handler, export_handler, contacts_handler=None):
+                 reminders_handler, receipts_handler, export_handler, 
+                 contacts_handler=None, work_tracker_handler=None):
         """
         Args:
             tasks_handler: TasksHandler instance
@@ -30,6 +31,7 @@ class UnifiedHandler:
             receipts_handler: ReceiptsHandler instance
             export_handler: ExportHandler instance
             contacts_handler: ContactsHandler instance
+            work_tracker_handler: WorkTrackerHandler instance
         """
         self.tasks = tasks_handler
         self.projects = projects_handler
@@ -38,6 +40,10 @@ class UnifiedHandler:
         self.receipts = receipts_handler
         self.reports = export_handler
         self.contacts = contacts_handler
+        self.work_tracker = work_tracker_handler
+        
+        # Новый классификатор интентов
+        self.classifier = get_classifier()
     
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
@@ -47,33 +53,47 @@ class UnifiedHandler:
         text = update.message.text or ""
         user_id = str(update.effective_user.id)
         
-        # Определяем интент
-        parsed = dispatch_message(text, has_photo=False)
+        # Классифицируем интент через новый классификатор
+        result = self.classifier.classify(text)
         
-        logger.info(f"User {user_id}: '{text[:50]}...' → {parsed.intent.value} (conf={parsed.confidence:.2f})")
+        logger.info(f"User {user_id}: '{text[:50]}...' → {result.intent.value} (conf={result.confidence:.2f})")
         
         # Роутинг по интенту
         try:
-            if parsed.intent == Intent.TASK:
-                await self._handle_task(update, context, parsed)
+            # Рабочее время
+            if result.intent in [Intent.WORK_ARRIVAL, Intent.WORK_DEPARTURE, 
+                                  Intent.WORK_BREAK_START, Intent.WORK_BREAK_END,
+                                  Intent.WORK_STATUS, Intent.WORK_REPORT]:
+                await self._handle_work(update, context, result)
             
-            elif parsed.intent == Intent.PROJECT:
-                await self._handle_project(update, context, parsed)
+            # Контакты
+            elif result.intent in [Intent.CONTACT_ADD, Intent.CONTACT_SEARCH,
+                                    Intent.CONTACT_INFO, Intent.CONTACT_LIST,
+                                    Intent.CONTACT_DELETE, Intent.CONTACT_INTERACTION]:
+                await self._handle_contact(update, context, result)
             
-            elif parsed.intent == Intent.HEALTH:
-                await self._handle_health(update, context, parsed)
+            # Задачи
+            elif result.intent in [Intent.TASK_ADD, Intent.TASK_LIST,
+                                    Intent.TASK_COMPLETE, Intent.TASK_DELETE]:
+                await self._handle_task(update, context, result)
             
-            elif parsed.intent == Intent.REMINDER:
-                await self._handle_reminder(update, context, parsed)
+            # Здоровье
+            elif result.intent in [Intent.HEALTH_LOG, Intent.HEALTH_STATUS]:
+                await self._handle_health(update, context, result)
             
-            elif parsed.intent == Intent.REPORT:
-                await self._handle_report(update, context, parsed)
+            # Чеки
+            elif result.intent in [Intent.RECEIPT_ADD, Intent.RECEIPT_LIST]:
+                await self._handle_receipt(update, context, result)
             
-            elif parsed.intent == Intent.CONTACT:
-                await self._handle_contact(update, context, parsed)
+            # Общение
+            elif result.intent == Intent.GREETING:
+                await self._handle_greeting(update, context)
             
-            elif parsed.intent == Intent.SMALL_TALK:
-                await self._handle_small_talk(update, context, parsed)
+            elif result.intent == Intent.THANKS:
+                await update.message.reply_text("👍 Всегда рад помочь!")
+            
+            elif result.intent == Intent.HELP:
+                await self._handle_help(update, context)
             
             else:
                 # UNKNOWN — пробуем как здоровье или даём подсказку
@@ -81,9 +101,9 @@ class UnifiedHandler:
                 if not handled:
                     await update.message.reply_text(
                         "🤔 Не совсем понял. Попробуй:\n"
-                        "• \"Запиши задачу: ...\"\n"
-                        "• \"Создай проект ...\"\n"
+                        "• \"Пришёл на работу\"\n"
                         "• \"Добавь контакт Иван 89991234567\"\n"
+                        "• \"Запиши задачу: ...\"\n"
                         "• \"Напомни через 30 мин ...\""
                     )
         
@@ -91,253 +111,159 @@ class UnifiedHandler:
             logger.error(f"Error handling message: {e}", exc_info=True)
             await update.message.reply_text("❌ Что-то пошло не так. Попробуй ещё раз.")
     
-    async def _handle_task(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
+    async def _handle_task(self, update: Update, context: ContextTypes.DEFAULT_TYPE, result: ClassificationResult):
         """Обработка задачи"""
         user_id = str(update.effective_user.id)
-        payload = parsed.payload
         
-        description = payload.get('description', parsed.original_text)
-        deadline = payload.get('deadline')
-        
-        # Создаём задачу через сервис
-        await self.tasks.db.create_task(
-            user_id=user_id,
-            task_description=description,
-            priority='medium'
-        )
-        
-        # Формируем короткий ответ
-        response = f"✅ Задача добавлена: \"{description[:50]}{'...' if len(description) > 50 else ''}\""
-        if deadline:
-            response += f" (дедлайн: {deadline})"
-        
-        await update.message.reply_text(response)
-    
-    async def _handle_project(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
-        """Обработка проекта"""
-        user_id = str(update.effective_user.id)
-        payload = parsed.payload
-        action = payload.get('action', 'info')
-        name = payload.get('name')
-        
-        if action == 'create':
-            if not name:
-                await update.message.reply_text("📂 Как назвать проект?")
-                return
+        if result.intent == Intent.TASK_ADD:
+            # Извлекаем описание задачи из текста
+            description = result.raw_text
+            # Убираем ключевые слова
+            for word in ['добавь задачу', 'запиши задачу', 'создай задачу', 'нужно сделать', 'не забыть']:
+                description = description.lower().replace(word, '').strip()
             
-            await self.projects.db.create_project(user_id=user_id, project_name=name)
-            await update.message.reply_text(
-                f"📂 Проект \"{name}\" создан.\n"
-                "Можешь прислать файлы или добавить задачи."
+            if not description:
+                description = result.raw_text
+            
+            # Создаём задачу через сервис
+            await self.tasks.db.create_task(
+                user_id=user_id,
+                task_description=description.strip(),
+                priority='medium'
             )
+            
+            await update.message.reply_text(f"✅ Задача добавлена: \"{description[:50]}{'...' if len(description) > 50 else ''}\"")
         
-        elif action == 'list':
-            projects = await self.projects.db.get_user_projects(user_id)
-            if not projects:
-                await update.message.reply_text("📂 У тебя пока нет проектов.")
+        elif result.intent == Intent.TASK_LIST:
+            tasks = await self.tasks.db.get_user_tasks(user_id, status='pending')
+            if not tasks:
+                await update.message.reply_text("📋 У тебя нет активных задач")
             else:
-                lines = ["📂 Твои проекты:"]
-                for p in projects[:5]:
-                    status = "🟢" if p['status'] == 'active' else "✅"
-                    lines.append(f"{status} {p['project_name']}")
-                await update.message.reply_text("\n".join(lines))
+                lines = ["📋 **Твои задачи:**"]
+                for i, t in enumerate(tasks[:10], 1):
+                    lines.append(f"{i}. {t.get('task_description', '')[:50]}")
+                await update.message.reply_text("\n".join(lines), parse_mode='Markdown')
         
         else:
-            # Показываем список
-            projects = await self.projects.db.get_user_projects(user_id)
-            count = len(projects) if projects else 0
-            await update.message.reply_text(f"📂 У тебя {count} проект(ов). Скажи \"мои проекты\" для списка.")
+            await update.message.reply_text("📋 Скажи \"мои задачи\" или \"добавь задачу: ...\"")
     
-    async def _handle_health(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
-        """Обработка записи в дневник здоровья"""
-        user_id = str(update.effective_user.id)
-        payload = parsed.payload
-        
-        entry_type = payload.get('entry_type', 'other')
-        description = payload.get('description', parsed.original_text)
-        time_str = payload.get('time')
-        
-        # Сохраняем запись
-        await self.health.db.save_health_entry(
-            user_id=user_id,
-            entry_type=entry_type,
-            description=description,
-            data={'time': time_str} if time_str else {}
-        )
-        
-        # Короткий ответ
-        emoji_map = {
-            'food': '🍽️',
-            'habit': '🚬',
-            'activity': '🏃',
-            'sleep': '😴',
-            'measurement': '📏',
-            'other': '📝'
-        }
-        
-        type_names = {
-            'food': 'питание',
-            'habit': 'привычка',
-            'activity': 'активность',
-            'sleep': 'сон',
-            'measurement': 'измерение',
-            'other': 'запись'
-        }
-        
-        emoji = emoji_map.get(entry_type, '📝')
-        type_name = type_names.get(entry_type, 'запись')
-        
-        response = f"{emoji} Записано: {type_name}"
-        if time_str:
-            response += f" в {time_str}"
-        
-        await update.message.reply_text(response)
-    
-    async def _handle_reminder(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
-        """Обработка напоминания"""
-        payload = parsed.payload
-        
-        reminder_text = payload.get('text', 'Напоминание')
-        time_str = payload.get('time_str')
-        
-        if not time_str:
-            await update.message.reply_text(
-                "⏰ Когда напомнить? Например:\n"
-                "• через 30 минут\n"
-                "• в 15:00"
-            )
+    async def _handle_work(self, update: Update, context: ContextTypes.DEFAULT_TYPE, result: ClassificationResult):
+        """Обработка рабочего времени"""
+        if not self.work_tracker:
+            await update.message.reply_text("❌ Сервис учёта рабочего времени не настроен")
             return
         
-        # Используем существующий метод
-        if self.reminders.notifications:
-            user_id = str(update.effective_user.id)
-            remind_time = self.reminders.notifications.parse_reminder_time(time_str + " " + reminder_text)
-            
-            if remind_time:
-                self.reminders.notifications.add_reminder(
-                    user_id=user_id,
-                    text=reminder_text,
-                    remind_at=remind_time
-                )
-                await update.message.reply_text(f"⏰ Ок, напомню {time_str}.")
-            else:
-                await update.message.reply_text("⏰ Не понял время. Попробуй: \"через 30 минут\" или \"в 15:00\"")
-        else:
-            await update.message.reply_text("⏰ Сервис напоминаний не настроен.")
-    
-    async def _handle_report(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
-        """Обработка запроса отчёта"""
         user_id = str(update.effective_user.id)
-        payload = parsed.payload
+        response = await self.work_tracker.handle_natural(user_id, result.raw_text)
         
-        report_type = payload.get('report_type', 'general')
-        period = payload.get('period', 'day')
-        
-        period_days = {'day': 1, 'week': 7, 'month': 30}.get(period, 7)
-        period_name = {'day': 'сегодня', 'week': 'неделю', 'month': 'месяц'}.get(period, 'неделю')
-        
-        if report_type == 'health':
-            entries = await self.health.db.get_health_entries(user_id, days=period_days)
-            count = len(entries) if entries else 0
-            
-            # Группируем по типам
-            by_type = {}
-            for e in (entries or []):
-                t = e.get('entry_type', 'other')
-                by_type[t] = by_type.get(t, 0) + 1
-            
-            lines = [f"📊 Здоровье за {period_name}:"]
-            if by_type:
-                type_emoji = {'food': '🍽️', 'habit': '🚬', 'activity': '🏃', 'sleep': '😴'}
-                for t, c in by_type.items():
-                    emoji = type_emoji.get(t, '📝')
-                    lines.append(f"{emoji} {t}: {c}")
-            else:
-                lines.append("Записей нет")
-            
-            await update.message.reply_text("\n".join(lines))
-        
-        elif report_type == 'expenses':
-            receipts = await self.receipts.db.get_user_receipts(user_id, limit=100)
-            total = sum(r.get('total_sum', 0) or 0 for r in (receipts or []))
-            count = len(receipts) if receipts else 0
-            
-            await update.message.reply_text(
-                f"📊 Расходы за {period_name}:\n"
-                f"🧾 Чеков: {count}\n"
-                f"💰 Сумма: {total:.0f} ₽"
-            )
-        
-        elif report_type == 'tasks':
-            tasks = await self.tasks.db.get_user_tasks(user_id, status=None)
-            pending = len([t for t in (tasks or []) if t.get('status') == 'pending'])
-            done = len([t for t in (tasks or []) if t.get('status') == 'done'])
-            
-            await update.message.reply_text(
-                f"📊 Задачи:\n"
-                f"📋 Активных: {pending}\n"
-                f"✅ Выполнено: {done}"
-            )
-        
+        if response:
+            await update.message.reply_text(response, parse_mode='Markdown')
         else:
-            # Общий отчёт
-            await update.message.reply_text(
-                "📊 Какой отчёт нужен?\n"
-                "• \"отчёт по здоровью за неделю\"\n"
-                "• \"отчёт по расходам\"\n"
-                "• \"отчёт по задачам\""
-            )
+            await update.message.reply_text("🤔 Не понял команду. Попробуй: \"пришёл на работу\" или \"ушёл с работы\"")
     
-    async def _handle_small_talk(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
-        """Обработка small talk"""
-        text_lower = parsed.original_text.lower()
-        
-        if any(w in text_lower for w in ['привет', 'здравствуй', 'hi', 'hello']):
-            await update.message.reply_text("👋 Привет! Что нужно сделать?")
-        
-        elif any(w in text_lower for w in ['спасибо', 'благодарю', 'thanks']):
-            await update.message.reply_text("👍")
-        
-        elif any(w in text_lower for w in ['пока', 'до свидания', 'bye']):
-            await update.message.reply_text("👋 Пока!")
-        
-        elif any(w in text_lower for w in ['как дела', 'что умеешь']):
-            await update.message.reply_text(
-                "Я помогу с:\n"
-                "• Задачами\n"
-                "• Проектами\n"
-                "• Чеками (пришли фото)\n"
-                "• Здоровьем\n"
-                "• Напоминаниями"
-            )
-        
-        else:
-            await update.message.reply_text("👍 Ок")
-    
-    async def _handle_contact(self, update: Update, context: ContextTypes.DEFAULT_TYPE, parsed: ParsedIntent):
+    async def _handle_contact(self, update: Update, context: ContextTypes.DEFAULT_TYPE, result: ClassificationResult):
         """Обработка контактов"""
         if not self.contacts:
             await update.message.reply_text("❌ Сервис контактов не настроен")
             return
         
-        text = parsed.original_text.lower()
         user_id = str(update.effective_user.id)
         
-        # Определяем действие
-        if any(w in text for w in ['добав', 'создай', 'сохрани', 'запиши']):
-            response = await self.contacts.add_contact_natural(user_id, parsed.original_text)
+        if result.intent == Intent.CONTACT_ADD:
+            response = await self.contacts.add_contact_natural(user_id, result.raw_text)
+        elif result.intent == Intent.CONTACT_LIST:
+            contacts = self.contacts.db.get_contacts(user_id)
+            if not contacts:
+                response = "📇 У тебя пока нет контактов"
+            else:
+                lines = ["📇 **Твои контакты:**"]
+                for c in contacts[:10]:
+                    name = c.get('name', 'Без имени')
+                    phone = c.get('phone', '')
+                    fav = "⭐ " if c.get('is_favorite') else ""
+                    lines.append(f"{fav}{name}" + (f" — {phone}" if phone else ""))
+                response = "\n".join(lines)
         else:
-            response = await self.contacts.search_contact_natural(user_id, parsed.original_text)
+            response = await self.contacts.search_contact_natural(user_id, result.raw_text)
         
         await update.message.reply_text(response, parse_mode='Markdown')
-
-
+    
+    async def _handle_health(self, update: Update, context: ContextTypes.DEFAULT_TYPE, result: ClassificationResult):
+        """Обработка записи в дневник здоровья"""
+        # Используем существующий обработчик
+        await self.health.handle_health_message(update, context)
+    
+    async def _handle_receipt(self, update: Update, context: ContextTypes.DEFAULT_TYPE, result: ClassificationResult):
+        """Обработка чеков"""
+        user_id = str(update.effective_user.id)
+        
+        if result.intent == Intent.RECEIPT_LIST:
+            receipts = await self.receipts.db.get_user_receipts(user_id, limit=10)
+            if not receipts:
+                await update.message.reply_text("🧾 У тебя пока нет чеков")
+            else:
+                total = sum(r.get('total_sum', 0) or 0 for r in receipts)
+                lines = [f"🧾 **Последние чеки:** (всего {total:.0f} ₽)"]
+                for r in receipts[:5]:
+                    shop = r.get('shop_name', 'Магазин')
+                    amount = r.get('total_sum', 0) or 0
+                    lines.append(f"• {shop}: {amount:.0f} ₽")
+                await update.message.reply_text("\n".join(lines), parse_mode='Markdown')
+        else:
+            # Пробуем извлечь сумму
+            amount = result.extracted_data.get('amount')
+            if amount:
+                await update.message.reply_text(f"🧾 Для добавления чека отправь фото чека или используй /receipt")
+            else:
+                await update.message.reply_text("🧾 Отправь фото чека для распознавания или скажи \"мои чеки\"")
+    
+    async def _handle_greeting(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Приветствие"""
+        await update.message.reply_text(
+            "👋 Привет! Я твой персональный ассистент.\n\n"
+            "Что я умею:\n"
+            "• 🏢 \"Пришёл на работу\" / \"Ушёл с работы\"\n"
+            "• 📇 \"Добавь контакт Иван 89991234567\"\n"
+            "• 📋 \"Добавь задачу: ...\"\n"
+            "• ⏰ \"Напомни через 30 мин ...\"\n"
+            "• 🧾 Отправь фото чека\n\n"
+            "Просто пиши обычным текстом!"
+        )
+    
+    async def _handle_help(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Помощь"""
+        await update.message.reply_text(
+            "📖 **Мои команды:**\n\n"
+            "**Рабочее время:**\n"
+            "• Пришёл на работу\n"
+            "• Ушёл с работы\n"
+            "• /work статус\n\n"
+            "**Контакты:**\n"
+            "• Добавь контакт Иван 89991234567\n"
+            "• Найди контакт Иван\n"
+            "• /contact list\n\n"
+            "**Задачи:**\n"
+            "• Добавь задачу: купить молоко\n"
+            "• Мои задачи\n\n"
+            "**Чеки:**\n"
+            "• Отправь фото чека\n"
+            "• Мои чеки\n\n"
+            "**Здоровье:**\n"
+            "• Съел яблоко\n"
+            "• Выкурил сигарету\n",
+            parse_mode='Markdown'
+        )
+    
 # Создаётся в main.py после инициализации всех handlers
 unified_handler = None
 
 
-def create_unified_handler(tasks, projects, health, reminders, receipts, reports, contacts=None) -> UnifiedHandler:
+def create_unified_handler(tasks, projects, health, reminders, receipts, reports, 
+                           contacts=None, work_tracker=None) -> UnifiedHandler:
     """Фабрика для создания UnifiedHandler"""
     global unified_handler
-    unified_handler = UnifiedHandler(tasks, projects, health, reminders, receipts, reports, contacts)
+    unified_handler = UnifiedHandler(
+        tasks, projects, health, reminders, receipts, reports, 
+        contacts, work_tracker
+    )
     return unified_handler

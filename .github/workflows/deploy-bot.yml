@@ -1,0 +1,61 @@
+name: Deploy Personal Assistant Bot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'bots/personal-assistant-bot/**'
+  workflow_dispatch:
+
+env:
+  BOT_PATH: bots/personal-assistant-bot
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: '${{ env.BOT_PATH }}/requirements.txt'
+      
+      - name: Install dependencies
+        run: |
+          cd ${{ env.BOT_PATH }}
+          pip install -r requirements.txt
+      
+      - name: Check syntax
+        run: |
+          cd ${{ env.BOT_PATH }}
+          python -m py_compile main.py
+          python -m py_compile handlers/*.py
+          python -m py_compile services/*.py
+      
+      - name: Run migration check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          cd ${{ env.BOT_PATH }}
+          python scripts/check_migrations.py
+
+  notify:
+    needs: test
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Send Telegram notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_ADMIN_ID" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_ADMIN_ID}" \
+              -d text="✅ Bot deployed successfully!%0A%0ACommit: ${GITHUB_SHA:0:7}%0ABranch: ${GITHUB_REF_NAME}" \
+              -d parse_mode="HTML"
+          fi

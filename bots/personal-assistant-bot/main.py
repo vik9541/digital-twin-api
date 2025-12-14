@@ -40,6 +40,7 @@ from handlers import (
 from handlers.contacts_handler import ContactsHandler
 from handlers.work_tracker_handler import WorkTrackerHandler
 from services.notifications import NotificationService
+from services.migration_runner import run_migrations_check
 
 # Загрузка .env
 from dotenv import load_dotenv
@@ -281,6 +282,14 @@ def main():
         for error in errors:
             logger.error(f"❌ {error}")
         return
+    
+    # Автоматическая проверка миграций БД
+    logger.info("=" * 50)
+    if not run_migrations_check():
+        logger.error("❌ Проблемы с базой данных! Исправь перед запуском.")
+        logger.error("   Открой: https://supabase.com/dashboard/project/lvixtpatqrtuwhygtpjx/sql/new")
+        return
+    logger.info("=" * 50)
     
     # Создание приложения
     app = Application.builder().token(config.TELEGRAM_BOT_TOKEN).post_init(post_init).post_shutdown(post_shutdown).build()

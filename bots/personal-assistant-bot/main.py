@@ -41,6 +41,7 @@ from handlers.contacts_handler import ContactsHandler
 from handlers.work_tracker_handler import WorkTrackerHandler
 from services.notifications import NotificationService
 from services.migration_runner import run_migrations_check
+from services.auto_sync import get_auto_sync
 
 # Загрузка .env
 from dotenv import load_dotenv
@@ -87,6 +88,9 @@ class PersonalAssistantBot:
         
         # Сервис уведомлений
         self.notification_service = None
+        
+        # Сервис автосинхронизации с GitHub
+        self.auto_sync = get_auto_sync()
     
     async def _send_notification(self, user_id: str, text: str):
         """Отправка уведомления пользователю"""
@@ -105,11 +109,17 @@ class PersonalAssistantBot:
         self.notification_service = NotificationService(self._send_notification)
         self.reminders.set_notification_service(self.notification_service)
         await self.notification_service.start()
+        
+        # Запуск автосинхронизации с GitHub
+        await self.auto_sync.start()
     
     async def stop_notification_service(self):
         """Остановка сервиса уведомлений"""
         if self.notification_service:
             await self.notification_service.stop()
+        
+        # Остановка автосинхронизации
+        await self.auto_sync.stop()
     
     def setup_handlers(self, app: Application):
         """Настройка обработчиков команд"""

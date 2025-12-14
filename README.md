@@ -1,24 +1,22 @@
-# Viktor Digital Twin API
+﻿# Viktor Digital Twin API
 
 **URL:** https://api.97v.ru  
-**Status:** ✅ Production  
+**Status:** Production  
 
 ## Quick Start
 
-```bash
-# Локальный запуск
+# окальный запуск
 docker-compose up -d
 
-# Проверка здоровья
+# роверка здоровья
 curl https://api.97v.ru/health
-```
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/...` | * | API routes |
+| /health | GET | Health check |
+| /api/... | * | API routes |
 
 ## Infrastructure
 
@@ -28,12 +26,9 @@ curl https://api.97v.ru/health
 
 ## Documentation
 
-- [Структура проектов](docs/PROJECT_STRUCTURE.md)
+- docs/PROJECT_STRUCTURE.md
 
 ## Related Projects
 
-- [super-brain-digital-twin](https://github.com/vik9541/super-brain-digital-twin)
-
----
-
-> ⚠️ **Important:** Не путать с 97k-backend (NestJS) - это отдельный проект на паузе.
+- super-brain-digital-twin - AI Brain система
+- viktor-ai-context - Т и контекст

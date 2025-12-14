@@ -20,6 +20,8 @@ from handlers.settings_handler import SettingsHandler
 from handlers.reminders_handler import RemindersHandler
 from handlers.export_handler import ExportHandler
 from handlers.microsoft_handler import MicrosoftHandler
+from handlers.dispatcher import dispatch_message, Intent, ParsedIntent
+from handlers.unified import UnifiedHandler, create_unified_handler
 
 __all__ = [
     "CommandsHandler",
@@ -31,4 +33,9 @@ __all__ = [
     "RemindersHandler",
     "ExportHandler",
     "MicrosoftHandler",
+    "dispatch_message",
+    "Intent",
+    "ParsedIntent",
+    "UnifiedHandler",
+    "create_unified_handler",
 ]

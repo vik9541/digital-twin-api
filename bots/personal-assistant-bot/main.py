@@ -34,7 +34,8 @@ from handlers import (
     SettingsHandler,
     RemindersHandler,
     ExportHandler,
-    MicrosoftHandler
+    MicrosoftHandler,
+    create_unified_handler
 )
 from services.notifications import NotificationService
 
@@ -67,6 +68,16 @@ class PersonalAssistantBot:
         self.export = ExportHandler()
         self.microsoft = MicrosoftHandler()
         
+        # Единый обработчик текстовых сообщений (Единое окно)
+        self.unified = create_unified_handler(
+            tasks=self.tasks,
+            projects=self.projects,
+            health=self.health,
+            reminders=self.reminders,
+            receipts=self.receipts,
+            reports=self.export
+        )
+        
         # Сервис уведомлений
         self.notification_service = None
     
@@ -92,21 +103,6 @@ class PersonalAssistantBot:
         """Остановка сервиса уведомлений"""
         if self.notification_service:
             await self.notification_service.stop()
-    
-    async def handle_text_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработка текстовых сообщений (дневник здоровья)"""
-        # Попробовать обработать как запись о здоровье
-        handled = await self.health.handle_health_message(update, context)
-        
-        if not handled:
-            # Если не распознано - вывести подсказку
-            await update.message.reply_text(
-                "🤔 Не понял команду.\n\n"
-                "Попробуй:\n"
-                "• `/help` - список команд\n"
-                "• Напиши что съел/сделал для дневника здоровья",
-                parse_mode='Markdown'
-            )
     
     def setup_handlers(self, app: Application):
         """Настройка обработчиков команд"""
@@ -147,8 +143,9 @@ class PersonalAssistantBot:
         # Обработка документов
         app.add_handler(MessageHandler(filters.Document.ALL, self.projects.handle_document))
         
-        # Текстовые сообщения (дневник здоровья)
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_message))
+        # ЕДИНОЕ ОКНО: все текстовые сообщения → UnifiedHandler
+        # Бот сам понимает: задача, проект, здоровье, напоминание, отчёт
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.unified.handle_message))
     
     async def _route_project_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Роутинг команд проектов"""
@@ -285,7 +282,8 @@ def main():
     
     # Запуск
     logger.info("🚀 Personal Assistant Bot запущен!")
-    logger.info("📋 Команды: /start /help /project /task /receipt /health /remind /export /report /ms")
+    logger.info("� Режим: Единое окно — просто пиши обычным текстом")
+    logger.info("�📋 Команды: /start /help /project /task /receipt /health /remind /export /report /ms")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
